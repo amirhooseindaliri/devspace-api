@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -70,11 +71,41 @@ export class UsersService {
   }
 
   async update(id: number, updateUserDto: UpdateUserDto) {
+    if (Object.values(updateUserDto).every((value) => value === undefined)) {
+      throw new BadRequestException('At least one field must be provided');
+    }
+
+    if (updateUserDto.email) {
+      const existingUser = await this.prisma.user.findUnique({
+        where: { email: updateUserDto.email },
+      });
+
+      if (existingUser && existingUser.id !== id) {
+        throw new ConflictException('Email already exist ');
+      }
+    }
+
     await this.findOne(id);
 
     return this.prisma.user.update({
       where: { id },
       data: updateUserDto,
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+  }
+
+  async remove(id: number) {
+    await this.findOne(id);
+
+    return this.prisma.user.delete({
+      where: { id },
       select: {
         id: true,
         email: true,
